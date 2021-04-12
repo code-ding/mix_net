@@ -12,7 +12,7 @@ class ResBase50(nn.Module):
     def __init__(self):
         super(ResBase50, self).__init__()
         model_resnet50 = models.resnet50(pretrained=False)
-        pre = torch.load("/Users/bytedabce/PycharmProjects/AFN/vanilla/Office31/HAFN/code/model/resnet50-19c8e357.pth")
+        pre = torch.load("/home/bks/zion/mix_net/pre_train/model/resnet50-19c8e357.pth")
         model_resnet50.load_state_dict(pre)
         self.conv1 = model_resnet50.conv1
         self.bn1 = model_resnet50.bn1
