@@ -31,8 +31,8 @@ print_args(args)
 
 result1 = open(os.path.join(args.result, "Office31_HAFN_1_" + args.task + '_' + args.post + '.' + args.repeat +  "_score.txt"), "a")
 
-t_root = os.path.join(args.data_root, args.target, "images")
-t_label = os.path.join(args.data_root, args.target, "label.txt")
+t_root = os.path.join(args.target, "", "images")
+t_label = os.path.join(args.target, "", "label.txt")
 
 data_transform = transforms.Compose([
     transforms.Resize((256, 256)),
