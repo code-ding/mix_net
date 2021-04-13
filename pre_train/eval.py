@@ -95,5 +95,5 @@ for epoch in range(int(args.epoch/2), args.epoch +1):
 
     correct = correct * 1.0 / len(t_set)
     print ("Epoch {0}: {1}".format(epoch, correct))
-    result1.write("Epoch " + str(epoch) + ": " + str(correct) + "\n")
-result1.close()
+    result2.write("Epoch " + str(epoch) + ": " + str(correct) + "\n")
+result2.close()
