@@ -88,7 +88,7 @@ for epoch in range(int(args.epoch/2), args.epoch +1):
         imgs = Variable(imgs.cuda())
         pred = netF(netG(imgs))
         pred = F.softmax(pred)
-        pred = pred.data.cuda().numpy()
+        pred = pred.data.cpu().numpy()
         pred = pred.argmax(axis=1)
         labels = labels.numpy()
         correct += np.equal(labels, pred).sum()
