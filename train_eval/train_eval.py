@@ -19,9 +19,9 @@ from model import ResBase50, ResClassifier
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_root", default="/home/bks/zion/mix_net/data/Office31")
-parser.add_argument("-s1", default="amazon")
+parser.add_argument("-s1", default="webcam")
 parser.add_argument("-s2", default="dslr")
-parser.add_argument("-t", default="webcam")
+parser.add_argument("-t", default="amazon")
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=0)
@@ -256,6 +256,7 @@ for step in range(steps):
             t_imgs = Variable(t_imgs_2.cuda())
             t_feature_h = extractor(t_imgs)
             t_sums = t_sums + t_feature_h
+        torch.cuda.empty_cache()
         avg_cost = t_sums/len(t_set)
         disc_costs = np.zeros(len(s1_set))
         for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
@@ -263,6 +264,7 @@ for step in range(steps):
             s1_feature = extractor(s1_img)
             s1_sums = s1_sums+s1_feature
             disc_costs[j] = torch.norm(s1_feature-avg_cost)
+        torch.cuda.empty_cache()
         sorted_disc_costs = sorted(disc_costs.tolist(), reverse=False)  # from small to large ones
         threshold_dis = sorted_disc_costs[int(len(s1_set)/4)]
         avg_cost_s1 = s1_sums/len(s1_set)
@@ -275,6 +277,7 @@ for step in range(steps):
                 s1_t_cls_loss = get_cls_loss(s1_t_cls, s1_label)
                 torch.autograd.backward([s1_t_cls_loss])
                 optim_s1_cls.step()
+        torch.cuda.empty_cache()
         print("finish s1")
         disc_costs2 = np.zeros(len(s2_set))
         for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
@@ -282,6 +285,7 @@ for step in range(steps):
             s2_feature = extractor(s2_img)
             disc_costs[j] = torch.norm(s2_feature - avg_cost)
             s2_sums = s2_sums + s2_feature
+        torch.cuda.empty_cache()
         sorted_disc_costs2 = sorted(disc_costs2.tolist(), reverse=False)  # from small to large ones
         threshold_dis = sorted_disc_costs2[int(len(s2_set) / 4)]
         avg_cost_s2 = s2_sums / len(s2_set)
@@ -294,6 +298,7 @@ for step in range(steps):
                 s2_t_cls_loss = get_cls_loss(s2_t_cls, s2_label)
                 torch.autograd.backward([s2_t_cls_loss])
                 optim_s2_cls.step()
+        torch.cuda.empty_cache()
         print("finish s2")
         break
     correct = 0
