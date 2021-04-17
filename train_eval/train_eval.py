@@ -259,9 +259,10 @@ for step in range(steps):
             disc_costs[j] = torch.norm(s1_feature-avg_cost)
         sorted_disc_costs = sorted(disc_costs.tolist(), reverse=False)  # from small to large ones
         threshold_dis = sorted_disc_costs[int(len(s1_set)/4)]
-        print("AAAAAAAA")
+
         for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
             s1_img = Variable(s1_img.cuda())
+            s1_label = Variable(s1_label.cuda())
             s1_feature = extractor(s1_img)
             if (torch.norm(s1_feature-avg_cost)) < threshold_dis:
                 s1_t_cls = s1_classifier(s1_feature)
@@ -278,6 +279,7 @@ for step in range(steps):
         threshold_dis = sorted_disc_costs2[int(len(s2_set) / 4)]
         for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
             s2_img = Variable(s2_img.cuda())
+            s2_label = Variable(s2_label.cuda())
             s2_feature = extractor(s2_img)
             if (torch.norm(s2_feature - avg_cost)) < threshold_dis:
                 s2_t_cls = s2_classifier(s2_feature)
