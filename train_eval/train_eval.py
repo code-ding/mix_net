@@ -243,23 +243,29 @@ for step in range(steps):
     #Part 3: find the nearest samples to fix classifier
 
     print("#################### Part3 ####################")
+    avg_cost = 0
+    avg_cost_s1 = 0
+    avg_cost_s2 = 0
     for ii, (t_imgs_1, t_labels_1) in tqdm.tqdm(enumerate(t_loader_raw1)):
         t_imgs_1 = Variable(t_imgs_1.cuda())
         t_feature_h = extractor(t_imgs_1)
-        t_sums = t_feature_h
+        t_sums = t_feature_h-t_feature_h
+        s1_sums = t_sums
+        s2_sums = t_sums
         for ii, (t_imgs_2, t_labels_2) in tqdm.tqdm(enumerate(t_loader_raw1)):
             t_imgs = Variable(t_imgs_2.cuda())
             t_feature_h = extractor(t_imgs)
             t_sums = t_sums + t_feature_h
-        avg_cost = (t_sums-t_feature_h)/len(t_set)
+        avg_cost = t_sums/len(t_set)
         disc_costs = np.zeros(len(s1_set))
         for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
             s1_img = Variable(s1_img.cuda())
             s1_feature = extractor(s1_img)
+            s1_sums = s1_sums+s1_feature
             disc_costs[j] = torch.norm(s1_feature-avg_cost)
         sorted_disc_costs = sorted(disc_costs.tolist(), reverse=False)  # from small to large ones
         threshold_dis = sorted_disc_costs[int(len(s1_set)/4)]
-
+        avg_cost_s1 = s1_sums/len(s1_set)
         for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
             s1_img = Variable(s1_img.cuda())
             s1_label = Variable(s1_label.cuda())
@@ -275,8 +281,10 @@ for step in range(steps):
             s2_img = Variable(s2_img.cuda())
             s2_feature = extractor(s2_img)
             disc_costs[j] = torch.norm(s2_feature - avg_cost)
+            s2_sums = s2_sums + s2_feature
         sorted_disc_costs2 = sorted(disc_costs2.tolist(), reverse=False)  # from small to large ones
         threshold_dis = sorted_disc_costs2[int(len(s2_set) / 4)]
+        avg_cost_s2 = s2_sums / len(s2_set)
         for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
             s2_img = Variable(s2_img.cuda())
             s2_label = Variable(s2_label.cuda())
@@ -387,33 +395,10 @@ for step in range(steps):
                           s2_t_confusion_loss_s2.data.item(), s2_t_confusion_loss_t.data.item(), SELECTIVE_SOURCE, ploter, count)
                 count += 1
         print("calculate weight")
-        s1_weight_dis=0
-        s2_weight_dis=0
-        for ii, (t_imgs_1, t_labels_1) in tqdm.tqdm(enumerate(t_loader_raw1)):
-            t_imgs_1 = Variable(t_imgs_1.cuda())
-            t_feature_h = extractor(t_imgs_1)
-            t_sums = t_feature_h - t_feature_h
-            s1_sums= t_sums
-            s2_sums= t_sums
-            for ii, (t_imgs_2, t_labels_2) in tqdm.tqdm(enumerate(t_loader_raw1)):
-                t_imgs = Variable(t_imgs_2.cuda())
-                t_feature_h = extractor(t_imgs)
-                t_sums = t_sums + t_feature_h
-            avg_cost_t = t_sums / len(t_set)
-            for i, (s1_img, s1_lable) in tqdm.tqdm(enumerate(s1_loader_raw1)):
-                s1_img = Variable(s1_img.cuda())
-                s1_feature_h = extractor(s1_img)
-                s1_sums = s1_sums + s1_feature_h
-            avg_cost_s1 = s1_sums / len(s1_set)
-            for i, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
-                s2_img = Variable(s2_img.cuda())
-                s2_feature_h = extractor(s2_img)
-                s2_sums = s2_sums + s2_feature_h
-            avg_cost_s2 = s2_sums / len(s2_set)
-            s1_weight_dis = math.exp(-(torch.mean(avg_cost_t-avg_cost_s1))**2)
-            s2_weight_dis = math.exp(-(torch.mean(avg_cost_t - avg_cost_s2)) ** 2)
-            s1_weight_loss = alpha* (s1_weight_loss/(s1_weight_loss+s2_weight_loss)) +(1-alpha)*(s1_weight_dis/(s1_weight_dis+s2_weight_dis))
-            s2_weight_loss = alpha * (s2_weight_loss/(s1_weight_loss+s2_weight_loss)) +(1-alpha)*(s2_weight_dis/(s1_weight_dis+s2_weight_dis))
+        s1_weight_dis = math.exp(-(torch.mean(avg_cost-avg_cost_s1))**2)
+        s2_weight_dis = math.exp(-(torch.mean(avg_cost - avg_cost_s2)) ** 2)
+        s1_weight_loss = alpha* (s1_weight_loss/(s1_weight_loss+s2_weight_loss)) +(1-alpha)*(s1_weight_dis/(s1_weight_dis+s2_weight_dis))
+        s2_weight_loss = alpha * (s2_weight_loss/(s1_weight_loss+s2_weight_loss)) +(1-alpha)*(s2_weight_dis/(s1_weight_dis+s2_weight_dis))
 print("max_correct is :",str(max_correct))
 print("max_step is :",str(max_step+1))
 print("max_epoch is :",str(max_epoch+1))
