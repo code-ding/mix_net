@@ -83,13 +83,11 @@ t_loader_test = torch.utils.data.DataLoader(t_set_test, batch_size=batch_size,
     shuffle=False, num_workers=num_workers)
 
 s1_loader_raw1 = torch.utils.data.DataLoader(s1_set, batch_size=1,
-    shuffle=shuffle, num_workers=num_workers)
+    shuffle=shuffle, pin_memory=True)
 s2_loader_raw1 = torch.utils.data.DataLoader(s2_set, batch_size=1,
-    shuffle=shuffle, num_workers=num_workers)
+    shuffle=shuffle, pin_memory=True)
 t_loader_raw1 = torch.utils.data.DataLoader(t_set, batch_size=1,
-    shuffle=shuffle, num_workers=num_workers)
-t_loader_test1 = torch.utils.data.DataLoader(t_set_test, batch_size=1,
-    shuffle=False, num_workers=num_workers)
+    shuffle=shuffle,pin_memory=True)
 
 extractor = Extractor().cuda()
 extractor.load_state_dict(torch.load("/home/bks/zion/mix_net/train_eval/pre_train_model/bvlc_extractor.pth"))
@@ -223,8 +221,8 @@ for step in range(steps):
             s2_cls = s2_classifier(imgs_feature)
             s1_cls = F.softmax(s1_cls)
             s2_cls = F.softmax(s2_cls)
-            s1_cls = s1_cls.data.cpu().numpy()
-            s2_cls = s2_cls.data.cpu().numpy()
+            s1_cls = s1_cls.data.cuda().numpy()
+            s2_cls = s2_cls.data.cuda().numpy()
             res = s1_cls * s1_weight + s2_cls * s2_weight
 
             pred = res.argmax(axis=1)
@@ -247,8 +245,8 @@ for step in range(steps):
     avg_cost_s1 = 0
     avg_cost_s2 = 0
     for ii, (t_imgs_1, t_labels_1) in tqdm.tqdm(enumerate(t_loader_raw1)):
-        t_imgs_1 = Variable(t_imgs_1.cuda())
-        t_feature_h = extractor(t_imgs_1)
+        t_imgs  = Variable(t_imgs_1.cuda())
+        t_feature_h = extractor(t_imgs)
         t_sums = t_feature_h-t_feature_h
         s1_sums = t_sums
         s2_sums = t_sums
@@ -260,8 +258,8 @@ for step in range(steps):
         avg_cost = t_sums/len(t_set)
         disc_costs = np.zeros(len(s1_set))
         for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
-            s1_img = Variable(s1_img.cuda())
-            s1_feature = extractor(s1_img)
+            img = Variable(s1_img.cuda())
+            s1_feature = extractor(img)
             s1_sums = s1_sums+s1_feature
             disc_costs[j] = torch.norm(s1_feature-avg_cost)
         torch.cuda.empty_cache()
@@ -269,20 +267,20 @@ for step in range(steps):
         threshold_dis = sorted_disc_costs[int(len(s1_set)/4)]
         avg_cost_s1 = s1_sums/len(s1_set)
         for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
-            s1_img = Variable(s1_img.cuda())
-            s1_label = Variable(s1_label.cuda())
-            s1_feature = extractor(s1_img)
+            img = Variable(s1_img.cuda())
+            label = Variable(s1_label.cuda())
+            s1_feature = extractor(img)
             if (torch.norm(s1_feature-avg_cost)) < threshold_dis:
                 s1_t_cls = s1_classifier(s1_feature)
-                s1_t_cls_loss = get_cls_loss(s1_t_cls, s1_label)
+                s1_t_cls_loss = get_cls_loss(s1_t_cls, label)
                 torch.autograd.backward([s1_t_cls_loss])
                 optim_s1_cls.step()
         torch.cuda.empty_cache()
         print("finish s1")
         disc_costs2 = np.zeros(len(s2_set))
         for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
-            s2_img = Variable(s2_img.cuda())
-            s2_feature = extractor(s2_img)
+            img = Variable(s2_img.cuda())
+            s2_feature = extractor(img)
             disc_costs[j] = torch.norm(s2_feature - avg_cost)
             s2_sums = s2_sums + s2_feature
         torch.cuda.empty_cache()
@@ -290,12 +288,12 @@ for step in range(steps):
         threshold_dis = sorted_disc_costs2[int(len(s2_set) / 4)]
         avg_cost_s2 = s2_sums / len(s2_set)
         for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
-            s2_img = Variable(s2_img.cuda())
-            s2_label = Variable(s2_label.cuda())
-            s2_feature = extractor(s2_img)
+            img = Variable(s2_img.cuda())
+            label = Variable(s2_label.cuda())
+            s2_feature = extractor(img)
             if (torch.norm(s2_feature - avg_cost)) < threshold_dis:
                 s2_t_cls = s2_classifier(s2_feature)
-                s2_t_cls_loss = get_cls_loss(s2_t_cls, s2_label)
+                s2_t_cls_loss = get_cls_loss(s2_t_cls, label)
                 torch.autograd.backward([s2_t_cls_loss])
                 optim_s2_cls.step()
         torch.cuda.empty_cache()
@@ -310,8 +308,8 @@ for step in range(steps):
         s2_cls = s2_classifier(imgs_feature)
         s1_cls = F.softmax(s1_cls)
         s2_cls = F.softmax(s2_cls)
-        s1_cls = s1_cls.data.cpu().numpy()
-        s2_cls = s2_cls.data.cpu().numpy()
+        s1_cls = s1_cls.data.cuda().numpy()
+        s2_cls = s2_cls.data.cuda().numpy()
         res = s1_cls * s1_weight + s2_cls * s2_weight
 
         pred = res.argmax(axis=1)
