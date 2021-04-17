@@ -322,8 +322,16 @@ for step in range(steps):
     for gan_epoch in range(gan_epoches):
         s1_loader, s2_loader, t_loader = iter(s1_loader_raw), iter(s2_loader_raw), iter(t_loader_raw)
         for i, (t_imgs, t_labels) in tqdm.tqdm(enumerate(t_loader)):
-            s1_imgs, s1_labels = s1_loader.next()
-            s2_imgs, s2_labels = s2_loader.next()
+            try:
+                s1_imgs, s1_labels = s1_loader.next()
+            except StopIteration:
+                s1_loader = iter(s1_loader_raw)
+                s1_imgs, s1_labels = s1_loader.next()
+            try:
+                s2_imgs, s2_labels = s2_loader.next()
+            except StopIteration:
+                s2_loader = iter(s2_loader_raw)
+                s2_imgs, s2_labels = s2_loader.next()
             s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
             s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
             t_imgs = Variable(t_imgs.cuda())
