@@ -377,6 +377,8 @@ for step in range(steps):
                           s2_t_confusion_loss_s2.data.item(), s2_t_confusion_loss_t.data.item(), SELECTIVE_SOURCE, ploter, count)
                 count += 1
         print("calculate weight")
+        s1_weight_dis=0
+        s2_weight_dis=0
         for ii, (t_imgs_1, t_labels_1) in tqdm.tqdm(enumerate(t_loader_raw1)):
             t_imgs_1 = Variable(t_imgs_1.cuda())
             t_feature_h = extractor(t_imgs_1)
