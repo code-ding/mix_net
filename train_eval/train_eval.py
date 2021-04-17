@@ -221,8 +221,8 @@ for step in range(steps):
             s2_cls = s2_classifier(imgs_feature)
             s1_cls = F.softmax(s1_cls)
             s2_cls = F.softmax(s2_cls)
-            s1_cls = s1_cls.data.cuda().numpy()
-            s2_cls = s2_cls.data.cuda().numpy()
+            s1_cls = s1_cls.data.cpu().numpy()
+            s2_cls = s2_cls.data.cpu().numpy()
             res = s1_cls * s1_weight + s2_cls * s2_weight
 
             pred = res.argmax(axis=1)
@@ -308,8 +308,8 @@ for step in range(steps):
         s2_cls = s2_classifier(imgs_feature)
         s1_cls = F.softmax(s1_cls)
         s2_cls = F.softmax(s2_cls)
-        s1_cls = s1_cls.data.cuda().numpy()
-        s2_cls = s2_cls.data.cuda().numpy()
+        s1_cls = s1_cls.data.cpu().numpy()
+        s2_cls = s2_cls.data.cpu().numpy()
         res = s1_cls * s1_weight + s2_cls * s2_weight
 
         pred = res.argmax(axis=1)
