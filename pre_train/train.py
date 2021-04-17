@@ -15,14 +15,14 @@ from model import ResBase50, ResClassifier
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_root1", default="/home/bks/zion/mix_net/data/Office31/amazon")
-parser.add_argument("--data_root2", default="/home/bks/zion/mix_net/data/Office31/dslr")
+parser.add_argument("--data_root2", default="/home/bks/zion/mix_net/data/Office31/webcam")
 parser.add_argument("--source", default="")
-parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/webcam")
+parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/dslr")
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=0)
-parser.add_argument("--pre_epoches", default=60, type=int)
-parser.add_argument("--epoch", default=60, type=int)
+parser.add_argument("--pre_epoches", default=1, type=int)
+parser.add_argument("--epoch", default=1, type=int)
 parser.add_argument("--snapshot", default="")
 parser.add_argument("--lr", default=0.001)
 parser.add_argument("--class_num", default=31)
@@ -64,11 +64,12 @@ source_loader2 = torch.utils.data.DataLoader(source_set2, batch_size=args.batch_
 target_loader = torch.utils.data.DataLoader(target_set, batch_size=args.batch_size,
     shuffle=args.shuffle, num_workers=args.num_workers)
 
-netG1 = ResBase50().cuda()
-netF1 = ResClassifier(class_num=args.class_num, extract=args.extract, dropout_p=args.dropout_p).cuda()
+netG1 = ResBase50().cpu()
+netF1 = ResClassifier(class_num=args.class_num, extract=args.extract, dropout_p=args.dropout_p).cpu()
 netF1.apply(weights_init)
-netG2 = ResBase50().cuda()
-netF2 = ResClassifier(class_num=args.class_num, extract=args.extract, dropout_p=args.dropout_p).cuda()
+
+netG2 = ResBase50().cpu()
+netF2 = ResClassifier(class_num=args.class_num, extract=args.extract, dropout_p=args.dropout_p).cpu()
 netF2.apply(weights_init)
 
 def get_cls_loss(pred, gt):
@@ -90,8 +91,8 @@ for epoch in range(1, args.pre_epoches + 1):
         if s_imgs.size(0) != args.batch_size:
             continue
             
-        s_imgs = Variable(s_imgs.cuda())
-        s_labels = Variable(s_labels.cuda())
+        s_imgs = Variable(s_imgs.cpu())
+        s_labels = Variable(s_labels.cpu())
         print("epoch:"+str(epoch))
         opt_g1.zero_grad()
         opt_f1.zero_grad()
@@ -111,8 +112,8 @@ for epoch in range(1, args.pre_epoches + 1):
         if s_imgs.size(0) != args.batch_size:
             continue
 
-        s_imgs = Variable(s_imgs.cuda())
-        s_labels = Variable(s_labels.cuda())
+        s_imgs = Variable(s_imgs.cpu())
+        s_labels = Variable(s_labels.cpu())
         print("epoch:" + str(epoch))
         opt_g2.zero_grad()
         opt_f2.zero_grad()
@@ -145,9 +146,9 @@ for epoch in range(1, args.epoch+1):
         if s_imgs.size(0) != args.batch_size or t_imgs.size(0) != args.batch_size:
             continue
 
-        s_imgs = Variable(s_imgs.cuda())
-        s_labels = Variable(s_labels.cuda())
-        t_imgs = Variable(t_imgs.cuda())
+        s_imgs = Variable(s_imgs.cpu())
+        s_labels = Variable(s_labels.cpu())
+        t_imgs = Variable(t_imgs.cpu())
         
         opt_g1.zero_grad()
         opt_f1.zero_grad()
@@ -186,9 +187,9 @@ for epoch in range(1, args.epoch + 1):
         if s_imgs.size(0) != args.batch_size or t_imgs.size(0) != args.batch_size:
             continue
 
-        s_imgs = Variable(s_imgs.cuda())
-        s_labels = Variable(s_labels.cuda())
-        t_imgs = Variable(t_imgs.cuda())
+        s_imgs = Variable(s_imgs.cpu())
+        s_labels = Variable(s_labels.cpu())
+        t_imgs = Variable(t_imgs.cpu())
 
         opt_g1.zero_grad()
         opt_f1.zero_grad()

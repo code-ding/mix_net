@@ -5,6 +5,7 @@ import numpy as np
 from itertools import chain
 from collections import OrderedDict
 import torch
+import  math
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -14,28 +15,31 @@ from torch.autograd import Variable
 from utils import OfficeImage, LinePlotter
 from model import Extractor, Classifier, Discriminator
 from model import get_cls_loss, get_dis_loss, get_confusion_loss
+from model import ResBase50, ResClassifier
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_root", default="/home/bks/zion/mix_net/data/Office31")
 parser.add_argument("-s1", default="amazon")
-parser.add_argument("-s2", default="webcam")
-parser.add_argument("-t", default="dslr")
+parser.add_argument("-s2", default="dslr")
+parser.add_argument("-t", default="webcam")
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=0)
 parser.add_argument("--steps", default=8)
-parser.add_argument("--snapshot", default="demo")
+parser.add_argument("--snapshot", default="")
 parser.add_argument("--s1_weight", default=0.5)
 parser.add_argument("--s2_weight", default=0.5)
 parser.add_argument("--lr", default=0.00001)
 parser.add_argument("--beta1", default=0.9)
 parser.add_argument("--beta2", default=0.999)
+parser.add_argument("--alpha", default=0.8)
 parser.add_argument("--gpu_id", default=1)
 parser.add_argument("--num_classes", default=31)
 parser.add_argument("--threshold", default=0.9)
 parser.add_argument("--log_interval", default=5)
 parser.add_argument("--cls_epoches", default=10)
 parser.add_argument("--gan_epoches", default=5)
+
 args = parser.parse_args()
 
 data_root = args.data_root
@@ -55,6 +59,7 @@ threshold = args.threshold
 log_interval = args.log_interval
 cls_epoches = args.cls_epoches
 gan_epoches = args.gan_epoches
+alpha = args.alpha
 
 s1_root = os.path.join(data_root, args.s1, "images")
 s1_label = os.path.join(data_root, args.s1, "label.txt")
@@ -66,10 +71,8 @@ s1_set = OfficeImage(s1_root, s1_label, split="train")
 s2_set = OfficeImage(s2_root, s2_label, split="train")
 t_set = OfficeImage(t_root, t_label, split="train")
 t_set_test = OfficeImage(t_root, t_label, split="test")
-assert len(s1_set) == 2817
-assert len(s2_set) == 795
-assert len(t_set) == 498
-assert len(t_set_test) == 498
+
+
 s1_loader_raw = torch.utils.data.DataLoader(s1_set, batch_size=batch_size,
     shuffle=shuffle, num_workers=num_workers)
 s2_loader_raw = torch.utils.data.DataLoader(s2_set, batch_size=batch_size,
@@ -79,6 +82,14 @@ t_loader_raw = torch.utils.data.DataLoader(t_set, batch_size=batch_size,
 t_loader_test = torch.utils.data.DataLoader(t_set_test, batch_size=batch_size,
     shuffle=False, num_workers=num_workers)
 
+s1_loader_raw1 = torch.utils.data.DataLoader(s1_set, batch_size=1,
+    shuffle=shuffle, num_workers=num_workers)
+s2_loader_raw1 = torch.utils.data.DataLoader(s2_set, batch_size=1,
+    shuffle=shuffle, num_workers=num_workers)
+t_loader_raw1 = torch.utils.data.DataLoader(t_set, batch_size=1,
+    shuffle=shuffle, num_workers=num_workers)
+t_loader_test1 = torch.utils.data.DataLoader(t_set_test, batch_size=1,
+    shuffle=False, num_workers=num_workers)
 
 extractor = Extractor().cuda()
 extractor.load_state_dict(torch.load("/home/bks/zion/mix_net/train_eval/pre_train_model/bvlc_extractor.pth"))
@@ -108,7 +119,7 @@ count = 0
 max_correct = 0
 max_step = 0
 max_epoch = 0
-ploter = LinePlotter(env_name="bvlc_A_W_2_D")
+ploter = LinePlotter(env_name="bvlc_A_D_2_W")
 for step in range(steps):
     # Part 1: assign psudo-labels to t-domain and update the label-dataset
     print ("#################### Part1 ####################")
@@ -142,9 +153,7 @@ for step in range(steps):
             if t_pred[j, ids[j]] >= threshold:
                 fout.write(data[0] + " " + str(ids[j]) + "\n")
     fin.close()
-    fout.close()     
-
-  
+    fout.close()
     # Part 2: train F1t, F2t with pseudo labels
     print ("#################### Part2 ####################")
     extractor.train()
@@ -159,7 +168,6 @@ for step in range(steps):
     optim_extract = optim.Adam(extractor.parameters(), lr=lr, betas=(beta1, beta2))
     optim_s1_cls = optim.Adam(s1_classifier.parameters(), lr=lr, betas=(beta1, beta2))
     optim_s2_cls = optim.Adam(s2_classifier.parameters(), lr=lr, betas=(beta1, beta2))
-
     for cls_epoch in range(cls_epoches):
         s1_loader, s2_loader, t_pse_loader = iter(s1_loader_raw), iter(s2_loader_raw), iter(t_pse_loader_raw)
         for i, (t_pse_imgs, t_pse_labels) in tqdm.tqdm(enumerate(t_pse_loader)):
@@ -232,9 +240,73 @@ for step in range(steps):
        #     torch.save(extractor.state_dict(), os.path.join(snapshot, "p2_extractor_" + str(step) + "_" + str(cls_epoch) + ".pth"))
         #    torch.save(s1_classifier.state_dict(), os.path.join(snapshot, "p2_s1_cls_" + str(step) + "_" + str(cls_epoch) + ".pth"))
          #   torch.save(s2_classifier.state_dict(), os.path.join(snapshot, "p2_s2_cls_" + str(step) + "_" + str(cls_epoch) + ".pth"))
+    #Part 3: find the nearest samples to fix classifier
 
-    # Part 3: train discriminator and generate mix feature
-    print ("#################### Part3 ####################")
+    print("#################### Part3 ####################")
+    for ii, (t_imgs_1, t_labels_1) in tqdm.tqdm(enumerate(t_loader_raw1)):
+        t_imgs_1 = Variable(t_imgs_1.cuda())
+        t_feature_h = extractor(t_imgs_1)
+        t_sums = t_feature_h
+        for ii, (t_imgs_2, t_labels_2) in tqdm.tqdm(enumerate(t_loader_raw1)):
+            t_imgs = Variable(t_imgs_2.cuda())
+            t_feature_h = extractor(t_imgs)
+            t_sums = t_sums + t_feature_h
+        avg_cost = (t_sums-t_feature_h)/len(t_set)
+        disc_costs = np.zeros(len(s1_set))
+        for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
+            s1_img = Variable(s1_img.cuda())
+            s1_feature = extractor(s1_img)
+            disc_costs[j] = torch.norm(s1_feature-avg_cost)
+        sorted_disc_costs = sorted(disc_costs.tolist(), reverse=False)  # from small to large ones
+        threshold_dis = sorted_disc_costs[int(len(s1_set)/4)]
+        print("AAAAAAAA")
+        for j, (s1_img, s1_label) in tqdm.tqdm(enumerate(s1_loader_raw1)):
+            s1_img = Variable(s1_img.cuda())
+            s1_feature = extractor(s1_img)
+            if (torch.norm(s1_feature-avg_cost)) < threshold_dis:
+                s1_t_cls = s1_classifier(s1_feature)
+                s1_t_cls_loss = get_cls_loss(s1_t_cls, s1_label)
+                torch.autograd.backward([s1_t_cls_loss])
+                optim_s1_cls.step()
+        print("finish s1")
+        disc_costs2 = np.zeros(len(s2_set))
+        for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
+            s2_img = Variable(s2_img.cuda())
+            s2_feature = extractor(s2_img)
+            disc_costs[j] = torch.norm(s2_feature - avg_cost)
+        sorted_disc_costs2 = sorted(disc_costs2.tolist(), reverse=False)  # from small to large ones
+        threshold_dis = sorted_disc_costs2[int(len(s2_set) / 4)]
+        for j, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
+            s2_img = Variable(s2_img.cuda())
+            s2_feature = extractor(s2_img)
+            if (torch.norm(s2_feature - avg_cost)) < threshold_dis:
+                s2_t_cls = s2_classifier(s2_feature)
+                s2_t_cls_loss = get_cls_loss(s2_t_cls, s2_label)
+                torch.autograd.backward([s2_t_cls_loss])
+                optim_s2_cls.step()
+        print("finish s2")
+        break
+    correct = 0
+    for (imgs, labels) in t_loader_test:
+        imgs = Variable(imgs.cuda())
+        imgs_feature = extractor(imgs)
+
+        s1_cls = s1_classifier(imgs_feature)
+        s2_cls = s2_classifier(imgs_feature)
+        s1_cls = F.softmax(s1_cls)
+        s2_cls = F.softmax(s2_cls)
+        s1_cls = s1_cls.data.cpu().numpy()
+        s2_cls = s2_cls.data.cpu().numpy()
+        res = s1_cls * s1_weight + s2_cls * s2_weight
+
+        pred = res.argmax(axis=1)
+        labels = labels.numpy()
+        correct += np.equal(labels, pred).sum()
+    current_accuracy = correct * 1.0 / len(t_set_test)
+    print("Current accuracy is: ", current_accuracy)
+
+    # Part 4: train discriminator and generate mix feature
+    print ("#################### Part4 ####################")
     extractor.train()
     s1_classifier.train()
     s2_classifier.train()
@@ -244,6 +316,7 @@ for step in range(steps):
 
     s1_weight_loss = 0
     s2_weight_loss = 0
+
     for gan_epoch in range(gan_epoches):
         s1_loader, s2_loader, t_loader = iter(s1_loader_raw), iter(s2_loader_raw), iter(t_loader_raw)
         for i, (t_imgs, t_labels) in tqdm.tqdm(enumerate(t_loader)):
@@ -303,7 +376,32 @@ for step in range(steps):
                           s2_t_dis_loss.data.item(), s1_t_confusion_loss_s1.data.item(), s1_t_confusion_loss_t.data.item(), \
                           s2_t_confusion_loss_s2.data.item(), s2_t_confusion_loss_t.data.item(), SELECTIVE_SOURCE, ploter, count)
                 count += 1
-
+        print("calculate weight")
+        for ii, (t_imgs_1, t_labels_1) in tqdm.tqdm(enumerate(t_loader_raw1)):
+            t_imgs_1 = Variable(t_imgs_1.cuda())
+            t_feature_h = extractor(t_imgs_1)
+            t_sums = t_feature_h - t_feature_h
+            s1_sums= t_sums
+            s2_sums= t_sums
+            for ii, (t_imgs_2, t_labels_2) in tqdm.tqdm(enumerate(t_loader_raw1)):
+                t_imgs = Variable(t_imgs_2.cuda())
+                t_feature_h = extractor(t_imgs)
+                t_sums = t_sums + t_feature_h
+            avg_cost_t = t_sums / len(t_set)
+            for i, (s1_img, s1_lable) in tqdm.tqdm(enumerate(s1_loader_raw1)):
+                s1_img = Variable(s1_img.cuda())
+                s1_feature_h = extractor(s1_img)
+                s1_sums = s1_sums + s1_feature_h
+            avg_cost_s1 = s1_sums / len(s1_set)
+            for i, (s2_img, s2_label) in tqdm.tqdm(enumerate(s2_loader_raw1)):
+                s2_img = Variable(s2_img.cuda())
+                s2_feature_h = extractor(s2_img)
+                s2_sums = s2_sums + s2_feature_h
+            avg_cost_s2 = s2_sums / len(s2_set)
+            s1_weight_dis = math.exp(-(torch.mean(avg_cost_t-avg_cost_s1))**2)
+            s2_weight_dis = math.exp(-(torch.mean(avg_cost_t - avg_cost_s2)) ** 2)
+            s1_weight_loss = alpha* (s1_weight_loss/(s1_weight_loss+s2_weight_loss)) +(1-alpha)*(s1_weight_dis/(s1_weight_dis+s2_weight_dis))
+            s2_weight_loss = alpha * (s2_weight_loss/(s1_weight_loss+s2_weight_loss)) +(1-alpha)*(s2_weight_dis/(s1_weight_dis+s2_weight_dis))
 print("max_correct is :",str(max_correct))
 print("max_step is :",str(max_step+1))
 print("max_epoch is :",str(max_epoch+1))
