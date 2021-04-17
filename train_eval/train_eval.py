@@ -19,9 +19,9 @@ from model import ResBase50, ResClassifier
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_root", default="/home/bks/zion/mix_net/data/Office31")
-parser.add_argument("-s1", default="webcam")
-parser.add_argument("-s2", default="dslr")
-parser.add_argument("-t", default="amazon")
+parser.add_argument("-s1", default="amazon")
+parser.add_argument("-s2", default="webcam")
+parser.add_argument("-t", default="dslr")
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=0)
@@ -117,6 +117,7 @@ count = 0
 max_correct = 0
 max_step = 0
 max_epoch = 0
+
 ploter = LinePlotter(env_name="bvlc_A_D_2_W")
 for step in range(steps):
     # Part 1: assign psudo-labels to t-domain and update the label-dataset
@@ -166,6 +167,7 @@ for step in range(steps):
     optim_extract = optim.Adam(extractor.parameters(), lr=lr, betas=(beta1, beta2))
     optim_s1_cls = optim.Adam(s1_classifier.parameters(), lr=lr, betas=(beta1, beta2))
     optim_s2_cls = optim.Adam(s2_classifier.parameters(), lr=lr, betas=(beta1, beta2))
+
     for cls_epoch in range(cls_epoches):
         s1_loader, s2_loader, t_pse_loader = iter(s1_loader_raw), iter(s2_loader_raw), iter(t_pse_loader_raw)
         for i, (t_pse_imgs, t_pse_labels) in tqdm.tqdm(enumerate(t_pse_loader)):
@@ -235,6 +237,7 @@ for step in range(steps):
             max_correct = current_accuracy
             max_step = step
             max_epoch = cls_epoch
+
        #     torch.save(extractor.state_dict(), os.path.join(snapshot, "p2_extractor_" + str(step) + "_" + str(cls_epoch) + ".pth"))
         #    torch.save(s1_classifier.state_dict(), os.path.join(snapshot, "p2_s1_cls_" + str(step) + "_" + str(cls_epoch) + ".pth"))
          #   torch.save(s2_classifier.state_dict(), os.path.join(snapshot, "p2_s2_cls_" + str(step) + "_" + str(cls_epoch) + ".pth"))
@@ -244,8 +247,8 @@ for step in range(steps):
     avg_cost = 0
     avg_cost_s1 = 0
     avg_cost_s2 = 0
-    t_loader_raw1[0]
-    t_imgs_1 = t_loader_raw1.item()
+    a = iter(s1_loader_raw)
+    t_imgs_1, t_lable = a.next()
     t_imgs  = Variable(t_imgs_1.cuda())
     t_feature_h = extractor(t_imgs)
     t_sums = t_feature_h-t_feature_h
