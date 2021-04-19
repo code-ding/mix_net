@@ -14,10 +14,10 @@ from util import OfficeImage, weights_init, print_args
 from model import ResBase50, ResClassifier
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data_root1", default="/home/bks/zion/mix_net/data/Office31/amazon")
-parser.add_argument("--data_root2", default="/home/bks/zion/mix_net/data/Office31/webcam")
+parser.add_argument("--data_root1", default="/Users/bytedabce/PycharmProjects/mix_net/data/Office31/amazon")
+parser.add_argument("--data_root2", default="/Users/bytedabce/PycharmProjects/mix_net/data/Office31/webcam")
 parser.add_argument("--source", default="")
-parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/dslr")
+parser.add_argument("--target", default="/Users/bytedabce/PycharmProjects/mix_net/data/Office31/dslr")
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=0)
