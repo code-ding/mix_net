@@ -89,6 +89,7 @@ optim_s1_cls = optim.Adam(s1_classifier.parameters(), lr=lr, betas=(beta1, beta2
 optim_s2_cls = optim.Adam(s2_classifier.parameters(), lr=lr, betas=(beta1, beta2))
 
 print("step_2")
+max_correct=0
 extractor.train()
 s1_classifier.train()
 s2_classifier.train()
