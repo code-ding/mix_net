@@ -23,7 +23,7 @@ parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/ds
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=1)
-parser.add_argument("--pre_epoches", default=10, type=int)
+parser.add_argument("--pre_epoches", default=30, type=int)
 parser.add_argument("--epoch", default=40, type=int)
 parser.add_argument("--snapshot", default="model_result")
 parser.add_argument("--lr", default=0.00001)
@@ -92,35 +92,34 @@ max_correct=0
 extractor.train()
 s1_classifier.train()
 s2_classifier.train()
-for epoch in range(1, args.pre_epoches + 1):
-    for cls_epoch in range(args.cls_epoches):
-        s1_loader, s2_loader = iter(source_loader1), iter(source_loader2)
-        for i, (s1_imgs, s1_labels) in tqdm.tqdm(enumerate(s1_loader)):
-            try:
-                s2_imgs, s2_labels = s2_loader.next()
-            except StopIteration:
-                s2_loader = iter(source_loader2)
-                s2_imgs, s2_labels = s2_loader.next()
-            if s1_imgs.size(0) != args.batch_size or s2_imgs.size(0) != args.batch_size:
-                continue
-            optim_extract.zero_grad()
-            optim_s1_cls.zero_grad()
-            optim_s2_cls.zero_grad()
-            s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
-            s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
-            s1_feature = extractor(s1_imgs)
-            s1_fc2_emb, s1_logit = s1_classifier(s1_feature)
-            s1_fc2_ring_loss = get_L2norm_loss_self_driven(s1_fc2_emb)
-            s1_cls_loss = get_cls_loss(s1_logit, s1_labels)
-            s2_feature = extractor(s1_imgs)
-            s2_fc2_emb, s2_logit = s1_classifier(s2_feature)
-            s2_fc2_ring_loss = get_L2norm_loss_self_driven(s2_fc2_emb)
-            s2_cls_loss = get_cls_loss(s2_logit, s2_labels)
-            loss = s1_cls_loss + s2_cls_loss + s1_fc2_ring_loss + s2_fc2_ring_loss
-            loss.backward()
-            optim_s1_cls.step()
-            optim_s2_cls.step()
-            optim_extract.step()
+for epoch in range(1, args.cls_epoches + 1):
+    s1_loader, s2_loader = iter(source_loader1), iter(source_loader2)
+    for i, (s1_imgs, s1_labels) in tqdm.tqdm(enumerate(s1_loader)):
+        try:
+            s2_imgs, s2_labels = s2_loader.next()
+        except StopIteration:
+            s2_loader = iter(source_loader2)
+            s2_imgs, s2_labels = s2_loader.next()
+        if s1_imgs.size(0) != args.batch_size or s2_imgs.size(0) != args.batch_size:
+            continue
+        optim_extract.zero_grad()
+        optim_s1_cls.zero_grad()
+        optim_s2_cls.zero_grad()
+        s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
+        s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
+        s1_feature = extractor(s1_imgs)
+        s1_fc2_emb, s1_logit = s1_classifier(s1_feature)
+        s1_fc2_ring_loss = get_L2norm_loss_self_driven(s1_fc2_emb)
+        s1_cls_loss = get_cls_loss(s1_logit, s1_labels)
+        s2_feature = extractor(s1_imgs)
+        s2_fc2_emb, s2_logit = s1_classifier(s2_feature)
+        s2_fc2_ring_loss = get_L2norm_loss_self_driven(s2_fc2_emb)
+        s2_cls_loss = get_cls_loss(s2_logit, s2_labels)
+        loss = s1_cls_loss + s2_cls_loss + s1_fc2_ring_loss + s2_fc2_ring_loss
+        loss.backward()
+        optim_s1_cls.step()
+        optim_s2_cls.step()
+        optim_extract.step()
 correct = 0
 for (imgs, labels) in target_loader:
     imgs = Variable(imgs.cuda())
@@ -226,7 +225,7 @@ for epoch in range(1, args.pre_epoches + 1):
     if current_accuracy >= max_correct:
         max_correct = current_accuracy
     print("epoch:",epoch,"max_correct:",max_correct)
-    if epoch >= 4 and max_correct == current_accuracy:
+    if epoch >= 10 and max_correct == current_accuracy:
         torch.save(s1_classifier.state_dict(), os.path.join(args.snapshot,"cls1"+ "_" + str(epoch) + ".pth"))
         torch.save(s1_classifier.state_dict(), os.path.join(args.snapshot, "cls2" + "_" + str(epoch) + ".pth"))
         torch.save(extractor.state_dict(),os.path.join(args.snapshot, "ext" + "_" + str(epoch) + ".pth"))
