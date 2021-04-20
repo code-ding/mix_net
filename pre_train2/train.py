@@ -142,7 +142,7 @@ print("Current accuracy is: ", current_accuracy)
 if current_accuracy >= max_correct:
     max_correct = current_accuracy
 
-for epoch in range(1, args.pre_epoches + 1):
+for epoch in range(1, args.pre_epoches + 10):
     print(">>training epoch : " + str(epoch))
     for cls_epoch in range(args.cls_epoches):
         s1_loader, s2_loader, t_loader = iter(source_loader1), iter(source_loader2),iter(target_loader)
