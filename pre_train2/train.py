@@ -126,8 +126,8 @@ for (imgs, labels) in target_loader:
     imgs = Variable(imgs.cuda())
     imgs_feature = extractor(imgs)
 
-    s1_cls = s1_classifier(imgs_feature)
-    s2_cls = s2_classifier(imgs_feature)
+    _, s1_cls = s1_classifier(imgs_feature)
+    _, s2_cls = s2_classifier(imgs_feature)
     s1_cls = F.softmax(s1_cls)
     s2_cls = F.softmax(s2_cls)
     s1_cls = s1_cls.data.cpu().numpy()
