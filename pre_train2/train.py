@@ -112,8 +112,8 @@ for epoch in range(1, args.pre_epoches + 1):
             s2_cls = s2_classifier(s2_feature)
             s1_cls_loss = get_cls_loss(s1_cls, s1_labels)
             s2_cls_loss = get_cls_loss(s2_cls, s2_labels)
-
-            torch.autograd.backward([s1_cls_loss, s2_cls_loss])
+            loss = s1_cls_loss + s2_cls_loss
+            loss.backward()
             optim_s1_cls.step()
             optim_s2_cls.step()
             optim_extract.step()
@@ -178,8 +178,7 @@ for epoch in range(1, args.pre_epoches + 1):
     s2_classifier.train()
     t_pse_label = os.path.join(args.source, args.target, "pseudo/pse_label_" + str(epoch) + ".txt")
     t_pse_set = OfficeImage(args.target, t_pse_label, split="train")
-    t_pse_loader_raw = torch.utils.data.DataLoader(t_pse_set, batch_size=args.batch_size,
-                                                   shuffle=args.shuffle, num_workers=args.num_workers)
+    t_pse_loader_raw = torch.utils.data.DataLoader(t_pse_set, batch_size=args.batch_size, shuffle=args.shuffle)
     print("Length of pseudo-label dataset: ", len(t_pse_set))
 
     optim_extract = optim.Adam(extractor.parameters(), lr=lr, betas=(beta1, beta2))
