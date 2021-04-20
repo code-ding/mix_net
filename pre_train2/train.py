@@ -23,7 +23,7 @@ parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/ds
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=1)
-parser.add_argument("--pre_epoches", default=10, type=int)
+parser.add_argument("--pre_epoches", default=4, type=int)
 parser.add_argument("--epoch", default=40, type=int)
 parser.add_argument("--snapshot", default="")
 parser.add_argument("--lr", default=0.00001)
@@ -37,7 +37,7 @@ parser.add_argument("--dropout_p", default=0.5)
 parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
-parser.add_argument("--cls_epoches", default=40)
+parser.add_argument("--cls_epoches", default=10)
 parser.add_argument("--threshold", default=0.7)
 args = parser.parse_args()
 
@@ -121,6 +121,27 @@ for epoch in range(1, args.pre_epoches + 1):
             optim_s1_cls.step()
             optim_s2_cls.step()
             optim_extract.step()
+correct = 0
+for (imgs, labels) in target_loader:
+    imgs = Variable(imgs.cuda())
+    imgs_feature = extractor(imgs)
+
+    s1_cls = s1_classifier(imgs_feature)
+    s2_cls = s2_classifier(imgs_feature)
+    s1_cls = F.softmax(s1_cls)
+    s2_cls = F.softmax(s2_cls)
+    s1_cls = s1_cls.data.cpu().numpy()
+    s2_cls = s2_cls.data.cpu().numpy()
+    res = s1_cls * s1_weight + s2_cls * s2_weight
+
+    pred = res.argmax(axis=1)
+    labels = labels.numpy()
+    correct += np.equal(labels, pred).sum()
+    current_accuracy = correct * 1.0 / len(target_set)
+    print("Current accuracy is: ", current_accuracy)
+
+    if current_accuracy >= max_correct:
+        max_correct = current_accuracy
 
 for epoch in range(1, args.pre_epoches + 1):
     for cls_epoch in range(args.cls_epoches):
