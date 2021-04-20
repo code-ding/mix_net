@@ -22,7 +22,7 @@ parser.add_argument("--source", default="")
 parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/dslr")
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
-parser.add_argument("--num_workers", default=0)
+parser.add_argument("--num_workers", default=1)
 parser.add_argument("--pre_epoches", default=10, type=int)
 parser.add_argument("--epoch", default=10, type=int)
 parser.add_argument("--snapshot", default="")
@@ -38,7 +38,7 @@ parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
 parser.add_argument("--cls_epoches", default=10)
-parser.add_argument("--threshold", default=0.9)
+parser.add_argument("--threshold", default=0.7)
 args = parser.parse_args()
 
 
@@ -176,8 +176,11 @@ for epoch in range(1, args.pre_epoches + 1):
     extractor.train()
     s1_classifier.train()
     s2_classifier.train()
+
     t_pse_label = os.path.join(args.source, args.target, "pseudo/pse_label_" + str(epoch) + ".txt")
-    t_pse_set = OfficeImage(args.target, t_pse_label, split="train")
+    t_pse_set = OfficeImage(target_root, t_pse_label, split="train")
+    if len(t_pse_set) <= 0:
+        continue
     t_pse_loader_raw = torch.utils.data.DataLoader(t_pse_set, batch_size=args.batch_size, shuffle=args.shuffle)
     print("Length of pseudo-label dataset: ", len(t_pse_set))
 
