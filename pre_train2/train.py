@@ -23,9 +23,9 @@ parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/ds
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=1)
-parser.add_argument("--pre_epoches", default=4, type=int)
+parser.add_argument("--pre_epoches", default=10, type=int)
 parser.add_argument("--epoch", default=40, type=int)
-parser.add_argument("--snapshot", default="")
+parser.add_argument("--snapshot", default="model_result")
 parser.add_argument("--lr", default=0.00001)
 parser.add_argument("--beta1", default=0.9)
 parser.add_argument("--beta2", default=0.999)
@@ -225,7 +225,11 @@ for epoch in range(1, args.pre_epoches + 1):
 
     if current_accuracy >= max_correct:
         max_correct = current_accuracy
-    print("max_correct:",max_correct)
+    print("epoch:",epoch,"max_correct:",max_correct)
+    if epoch >= 4 and max_correct == current_accuracy:
+        torch.save(s1_classifier.state_dict(), os.path.join(args.snapshot,"cls1"+ "_" + str(epoch) + ".pth"))
+        torch.save(s1_classifier.state_dict(), os.path.join(args.snapshot, "cls2" + "_" + str(epoch) + ".pth"))
+        torch.save(extractor.state_dict(),os.path.join(args.snapshot, "ext" + "_" + str(epoch) + ".pth"))
 
 """
     print("step_3")
