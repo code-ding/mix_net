@@ -137,11 +137,11 @@ for (imgs, labels) in target_loader:
     pred = res.argmax(axis=1)
     labels = labels.numpy()
     correct += np.equal(labels, pred).sum()
-    current_accuracy = correct * 1.0 / len(target_set)
-    print("Current accuracy is: ", current_accuracy)
+current_accuracy = correct * 1.0 / len(target_set)
+print("Current accuracy is: ", current_accuracy)
 
-    if current_accuracy >= max_correct:
-        max_correct = current_accuracy
+if current_accuracy >= max_correct:
+    max_correct = current_accuracy
 
 for epoch in range(1, args.pre_epoches + 1):
     for cls_epoch in range(args.cls_epoches):
@@ -154,29 +154,19 @@ for epoch in range(1, args.pre_epoches + 1):
             except StopIteration:
                 s1_loader = iter(source_loader1)
                 s1_imgs, s1_labels = s1_loader.next()
-            try:
-                s2_imgs, s2_labels = s2_loader.next()
-            except StopIteration:
-                s2_loader = iter(source_loader2)
-                s2_imgs, s2_labels = s2_loader.next()
 
-            if s1_imgs.size(0) != args.batch_size or s2_imgs.size(0) != args.batch_size or t_imgs.size(0) != args.batch_size:
+            if s1_imgs.size(0) != args.batch_size or t_imgs.size(0) != args.batch_size:
                 continue
 
             optim_extract.zero_grad()
             optim_s1_cls.zero_grad()
-            optim_s2_cls.zero_grad()
 
             s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
-            s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
             t_imgs = Variable(t_imgs.cuda())
             s1_feature = extractor(s1_imgs)
-            s2_feature = extractor(s2_imgs)
             t_feature = extractor(t_imgs)
             s1_fc2_emb, s1_logit = s1_classifier(s1_feature)
-            s2_fc2_emb, s2_logit = s2_classifier(s2_feature)
             t1_fc2_emb, t1_logit = s1_classifier(t_feature)
-            t2_fc2_emb, t2_logit = s2_classifier(t_feature)
             s1_cls_loss = get_cls_loss(s1_logit, s1_labels)
             s1_fc2_L2norm_loss = get_L2norm_loss_self_driven(s1_fc2_emb)
             t1_fc2_L2norm_loss = get_L2norm_loss_self_driven(t1_fc2_emb)
@@ -184,37 +174,58 @@ for epoch in range(1, args.pre_epoches + 1):
             loss1.backward()
             optim_s1_cls.step()
             optim_extract.step()
+
+    for cls_epoch in range(args.cls_epoches):
+        s2_loader, t_loader =  iter(source_loader2), iter(target_loader)
+        print(">>training " + args.task + " epoch : " + str(epoch))
+
+        for i, (t_imgs, _) in tqdm.tqdm(enumerate(t_loader)):
+            try:
+                s2_imgs, s2_labels = s2_loader.next()
+            except StopIteration:
+                s2_loader = iter(source_loader2)
+                s2_imgs, s2_labels = s2_loader.next()
+
+            if s2_imgs.size(0) != args.batch_size or t_imgs.size(0) != args.batch_size:
+                continue
+
+            optim_extract.zero_grad()
+            optim_s2_cls.zero_grad()
+            s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
+            t_imgs = Variable(t_imgs.cuda())
+            s2_feature = extractor(s2_imgs)
+            t_feature = extractor(t_imgs)
+            s2_fc2_emb, s2_logit = s2_classifier(s2_feature)
+            t2_fc2_emb, t2_logit = s2_classifier(t_feature)
             s2_cls_loss = get_cls_loss(s2_logit, s2_labels)
             s2_fc2_L2norm_loss = get_L2norm_loss_self_driven(s2_fc2_emb)
             t2_fc2_L2norm_loss = get_L2norm_loss_self_driven(t2_fc2_emb)
-            loss2 = s2_cls_loss+s2_fc2_L2norm_loss+t2_fc2_L2norm_loss
+            loss2 = s2_cls_loss + s2_fc2_L2norm_loss + t2_fc2_L2norm_loss
             loss2.backward()
             optim_s2_cls.step()
             optim_extract.step()
+    correct = 0
+    for (imgs, labels) in target_loader:
+        imgs = Variable(imgs.cuda())
+        imgs_feature = extractor(imgs)
 
+        s1_cls = s1_classifier(imgs_feature)
+        s2_cls = s2_classifier(imgs_feature)
+        _, s1_cls = s1_classifier(imgs_feature)
+        _, s2_cls = s2_classifier(imgs_feature)
+        s1_cls = s1_cls.data.cpu().numpy()
+        s2_cls = s2_cls.data.cpu().numpy()
+        res = s1_cls * s1_weight + s2_cls * s2_weight
 
-correct = 0
-for (imgs, labels) in target_loader:
-    imgs = Variable(imgs.cuda())
-    imgs_feature = extractor(imgs)
-
-    s1_cls = s1_classifier(imgs_feature)
-    s2_cls = s2_classifier(imgs_feature)
-    _, s1_cls = s1_classifier(imgs_feature)
-    _, s2_cls = s2_classifier(imgs_feature)
-    s1_cls = s1_cls.data.cpu().numpy()
-    s2_cls = s2_cls.data.cpu().numpy()
-    res = s1_cls * s1_weight + s2_cls * s2_weight
-
-    pred = res.argmax(axis=1)
-    labels = labels.numpy()
-    correct += np.equal(labels, pred).sum()
+        pred = res.argmax(axis=1)
+        labels = labels.numpy()
+        correct += np.equal(labels, pred).sum()
     current_accuracy = correct * 1.0 / len(target_set)
     print("Current accuracy is: ", current_accuracy)
 
     if current_accuracy >= max_correct:
         max_correct = current_accuracy
-
+    print("max_correct:",max_correct)
 
 """
     print("step_3")
