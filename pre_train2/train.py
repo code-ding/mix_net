@@ -38,7 +38,7 @@ parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
 parser.add_argument("--cls_epoches", default=10)
-parser.add_argument("--threshold", default=0.7)
+parser.add_argument("--threshold", default=0.5)
 args = parser.parse_args()
 
 
@@ -253,3 +253,4 @@ for epoch in range(1, args.pre_epoches + 1):
 
         if current_accuracy >= max_correct:
             max_correct = current_accuracy
+        print("finish step4")
