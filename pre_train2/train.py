@@ -24,7 +24,7 @@ parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=1)
 parser.add_argument("--pre_epoches", default=10, type=int)
-parser.add_argument("--epoch", default=10, type=int)
+parser.add_argument("--epoch", default=40, type=int)
 parser.add_argument("--snapshot", default="")
 parser.add_argument("--lr", default=0.00001)
 parser.add_argument("--beta1", default=0.9)
@@ -175,85 +175,83 @@ for epoch in range(1, args.pre_epoches + 1):
     fin.close()
     fout.close()
 
-    print("step4")
-    extractor.train()
-    s1_classifier.train()
-    s2_classifier.train()
+print("step4")
+extractor.train()
+s1_classifier.train()
+s2_classifier.train()
 
-    t_pse_label = os.path.join(args.source, args.target, "pseudo/pse_label_" + str(epoch) + ".txt")
-    t_pse_set = OfficeImage(target_root, t_pse_label, split="train")
-    if len(t_pse_set) <= 0:
-        continue
-    t_pse_loader_raw = torch.utils.data.DataLoader(t_pse_set, batch_size=args.batch_size, shuffle=args.shuffle)
-    print("Length of pseudo-label dataset: ", len(t_pse_set))
+t_pse_label = os.path.join(args.source, args.target, "pseudo/pse_label_" + str(epoch) + ".txt")
+t_pse_set = OfficeImage(target_root, t_pse_label, split="train")
+t_pse_loader_raw = torch.utils.data.DataLoader(t_pse_set, batch_size=args.batch_size, shuffle=args.shuffle)
+print("Length of pseudo-label dataset: ", len(t_pse_set))
 
-    optim_extract = optim.Adam(extractor.parameters(), lr=lr, betas=(beta1, beta2))
-    optim_s1_cls = optim.Adam(s1_classifier.parameters(), lr=lr, betas=(beta1, beta2))
-    optim_s2_cls = optim.Adam(s2_classifier.parameters(), lr=lr, betas=(beta1, beta2))
+optim_extract = optim.Adam(extractor.parameters(), lr=lr, betas=(beta1, beta2))
+optim_s1_cls = optim.Adam(s1_classifier.parameters(), lr=lr, betas=(beta1, beta2))
+optim_s2_cls = optim.Adam(s2_classifier.parameters(), lr=lr, betas=(beta1, beta2))
 
-    for cls_epoch in range(args.cls_epoches):
-        s1_loader, s2_loader, t_pse_loader = iter(source_loader1), iter(source_loader2), iter(t_pse_loader_raw)
-        for i, (t_pse_imgs, t_pse_labels) in tqdm.tqdm(enumerate(t_pse_loader)):
-            try:
-                s1_imgs, s1_labels = s1_loader.next()
-            except StopIteration:
-                s1_loader = iter(source_loader1)
-                s1_imgs, s1_labels = s1_loader.next()
-            try:
-                s2_imgs, s2_labels = s2_loader.next()
-            except StopIteration:
-                s2_loader = iter(source_loader2)
-                s2_imgs, s2_labels = s2_loader.next()
-            if s1_imgs.size(0) != args.batch_size or s2_imgs.size(0) != args.batch_size or t_pse_imgs.size(0) != args.batch_size:
-                continue
-            s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
-            s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
-            t_pse_imgs, t_pse_labels = Variable(t_pse_imgs.cuda()), Variable(t_pse_labels.cuda())
+for cls_epoch in range(args.cls_epoches):
+    s1_loader, s2_loader, t_pse_loader = iter(source_loader1), iter(source_loader2), iter(t_pse_loader_raw)
+    for i, (t_pse_imgs, t_pse_labels) in tqdm.tqdm(enumerate(t_pse_loader)):
+        try:
+            s1_imgs, s1_labels = s1_loader.next()
+        except StopIteration:
+            s1_loader = iter(source_loader1)
+            s1_imgs, s1_labels = s1_loader.next()
+        try:
+            s2_imgs, s2_labels = s2_loader.next()
+        except StopIteration:
+            s2_loader = iter(source_loader2)
+            s2_imgs, s2_labels = s2_loader.next()
+        if s1_imgs.size(0) != args.batch_size or s2_imgs.size(0) != args.batch_size or t_pse_imgs.size(0) != args.batch_size:
+            continue
+        s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
+        s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
+        t_pse_imgs, t_pse_labels = Variable(t_pse_imgs.cuda()), Variable(t_pse_labels.cuda())
 
-            s1_t_imgs = torch.cat((s1_imgs, t_pse_imgs), 0)
-            s1_t_labels = torch.cat((s1_labels, t_pse_labels), 0)
-            s2_t_imgs = torch.cat((s2_imgs, t_pse_imgs), 0)
-            s2_t_labels = torch.cat((s2_labels, t_pse_labels), 0)
+        s1_t_imgs = torch.cat((s1_imgs, t_pse_imgs), 0)
+        s1_t_labels = torch.cat((s1_labels, t_pse_labels), 0)
+        s2_t_imgs = torch.cat((s2_imgs, t_pse_imgs), 0)
+        s2_t_labels = torch.cat((s2_labels, t_pse_labels), 0)
 
-            optim_extract.zero_grad()
-            optim_s1_cls.zero_grad()
-            optim_s2_cls.zero_grad()
+        optim_extract.zero_grad()
+        optim_s1_cls.zero_grad()
+        optim_s2_cls.zero_grad()
 
-            s1_t_feature = extractor(s1_t_imgs)
-            s2_t_feature = extractor(s2_t_imgs)
-            s1_t_cls = s1_classifier(s1_t_feature)
-            s2_t_cls = s2_classifier(s2_t_feature)
-            s1_t_cls_loss = get_cls_loss(s1_t_cls, s1_t_labels)
-            s2_t_cls_loss = get_cls_loss(s2_t_cls, s2_t_labels)
+        s1_t_feature = extractor(s1_t_imgs)
+        s2_t_feature = extractor(s2_t_imgs)
+        s1_t_cls = s1_classifier(s1_t_feature)
+        s2_t_cls = s2_classifier(s2_t_feature)
+        s1_t_cls_loss = get_cls_loss(s1_t_cls, s1_t_labels)
+        s2_t_cls_loss = get_cls_loss(s2_t_cls, s2_t_labels)
 
-            torch.autograd.backward([s1_t_cls_loss, s2_t_cls_loss])
+        torch.autograd.backward([s1_t_cls_loss, s2_t_cls_loss])
 
-            optim_s1_cls.step()
-            optim_s2_cls.step()
-            optim_extract.step()
+        optim_s1_cls.step()
+        optim_s2_cls.step()
+        optim_extract.step()
 
-        extractor.eval()
-        s1_classifier.eval()
-        s2_classifier.eval()
-        correct = 0
-        for (imgs, labels) in target_loader:
-            imgs = Variable(imgs.cuda())
-            imgs_feature = extractor(imgs)
+    extractor.eval()
+    s1_classifier.eval()
+    s2_classifier.eval()
+    correct = 0
+    for (imgs, labels) in target_loader:
+        imgs = Variable(imgs.cuda())
+        imgs_feature = extractor(imgs)
 
-            s1_cls = s1_classifier(imgs_feature)
-            s2_cls = s2_classifier(imgs_feature)
-            s1_cls = F.softmax(s1_cls)
-            s2_cls = F.softmax(s2_cls)
-            s1_cls = s1_cls.data.cpu().numpy()
-            s2_cls = s2_cls.data.cpu().numpy()
-            res = s1_cls * s1_weight + s2_cls * s2_weight
+        s1_cls = s1_classifier(imgs_feature)
+        s2_cls = s2_classifier(imgs_feature)
+        s1_cls = F.softmax(s1_cls)
+        s2_cls = F.softmax(s2_cls)
+        s1_cls = s1_cls.data.cpu().numpy()
+        s2_cls = s2_cls.data.cpu().numpy()
+        res = s1_cls * s1_weight + s2_cls * s2_weight
 
-            pred = res.argmax(axis=1)
-            labels = labels.numpy()
-            correct += np.equal(labels, pred).sum()
-        current_accuracy = correct * 1.0 / len(target_set)
-        print("Current accuracy is: ", current_accuracy)
+        pred = res.argmax(axis=1)
+        labels = labels.numpy()
+        correct += np.equal(labels, pred).sum()
+    current_accuracy = correct * 1.0 / len(target_set)
+    print("Current accuracy is: ", current_accuracy)
 
-        if current_accuracy >= max_correct:
-            max_correct = current_accuracy
-        print("finish step4")
+    if current_accuracy >= max_correct:
+        max_correct = current_accuracy
+    print("finish step4")
