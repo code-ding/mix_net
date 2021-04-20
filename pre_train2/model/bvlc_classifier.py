@@ -24,14 +24,8 @@ class Classifier(nn.Module):
     def forward(self, input):
         input = input.view(input.size(0), 256 * 6 * 6)
         fc6 = self.fc6(input)
-        relu6 = self.relu6(fc6)
-        drop6 = self.drop6(relu6)
-
-        fc7 = self.fc7(drop6)
-        relu7 = self.relu7(fc7)
-        drop7 = self.drop7(relu7)
-
-        fc1_emb = drop7
+        fc7 = self.fc7(fc6)
+        fc1_emb = fc7
         if self.training:
             fc1_emb.mul_(math.sqrt(1 - self.dropout_p))
         logit = self.fc8(fc1_emb)

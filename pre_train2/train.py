@@ -38,7 +38,7 @@ parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
 parser.add_argument("--cls_epoches", default=40)
-parser.add_argument("--threshold", default=0.5)
+parser.add_argument("--threshold", default=0.7)
 args = parser.parse_args()
 
 
