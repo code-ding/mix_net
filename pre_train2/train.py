@@ -37,7 +37,7 @@ parser.add_argument("--dropout_p", default=0.5)
 parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
-parser.add_argument("--cls_epoches", default=10)
+parser.add_argument("--cls_epoches", default=40)
 parser.add_argument("--threshold", default=0.5)
 args = parser.parse_args()
 
@@ -104,6 +104,9 @@ for epoch in range(1, args.pre_epoches + 1):
                 s2_imgs, s2_labels = s2_loader.next()
             if s1_imgs.size(0) != args.batch_size or s2_imgs.size(0) != args.batch_size:
                 continue
+            optim_extract.zero_grad()
+            optim_s1_cls.zero_grad()
+            optim_s2_cls.zero_grad()
             s1_imgs, s1_labels = Variable(s1_imgs.cuda()), Variable(s1_labels.cuda())
             s2_imgs, s2_labels = Variable(s2_imgs.cuda()), Variable(s2_labels.cuda())
             s1_feature = extractor(s1_imgs)
