@@ -38,7 +38,7 @@ parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
 parser.add_argument("--cls_epoches", default=10)
-parser.add_argument("--threshold", default=0.8)
+parser.add_argument("--threshold", default=0.9)
 args = parser.parse_args()
 
 
@@ -319,23 +319,23 @@ for epoch in range(1, args.cls_epoches + 1):
         s1_classifier.eval()
         s2_classifier.eval()
         correct = 0
-        for (imgs, labels) in target_loader:
-            imgs = Variable(imgs.cuda())
-            imgs_feature = extractor(imgs)
+    for (imgs, labels) in target_loader:
+        imgs = Variable(imgs.cuda())
+        imgs_feature = extractor(imgs)
 
-            _,s1_cls = s1_classifier(imgs_feature)
-            _,s2_cls = s2_classifier(imgs_feature)
-            s1_cls = F.softmax(s1_cls)
-            s2_cls = F.softmax(s2_cls)
-            s1_cls = s1_cls.data.cpu().numpy()
-            s2_cls = s2_cls.data.cpu().numpy()
-            res = s1_cls * s1_weight + s2_cls * s2_weight
+        _,s1_cls = s1_classifier(imgs_feature)
+        _,s2_cls = s2_classifier(imgs_feature)
+        s1_cls = F.softmax(s1_cls)
+        s2_cls = F.softmax(s2_cls)
+        s1_cls = s1_cls.data.cpu().numpy()
+        s2_cls = s2_cls.data.cpu().numpy()
+        res = s1_cls * s1_weight + s2_cls * s2_weight
 
-            pred = res.argmax(axis=1)
-            labels = labels.numpy()
-            correct += np.equal(labels, pred).sum()
-        current_accuracy = correct * 1.0 / len(target_set)
-        print("Current accuracy is: ", current_accuracy)
+        pred = res.argmax(axis=1)
+        labels = labels.numpy()
+        correct += np.equal(labels, pred).sum()
+    current_accuracy = correct * 1.0 / len(target_set)
+    print("Current accuracy is: ", current_accuracy)
 
-        if current_accuracy >= max_correct:
-            max_correct = current_accuracy
+    if current_accuracy >= max_correct:
+        max_correct = current_accuracy

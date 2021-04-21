@@ -18,7 +18,7 @@ from model import get_cls_loss, get_dis_loss, get_confusion_loss
 from model import ResBase50, ResClassifier
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data_root", default="/home/bks/zion/mix_net/data/Office31")
+parser.add_argument("--data_root", default="/Users/bytedabce/PycharmProjects/mix_net/data/Office31")
 parser.add_argument("-s1", default="amazon")
 parser.add_argument("-s2", default="webcam")
 parser.add_argument("-t", default="dslr")
@@ -89,14 +89,17 @@ s2_loader_raw1 = torch.utils.data.DataLoader(s2_set, batch_size=1,
 t_loader_raw1 = torch.utils.data.DataLoader(t_set, batch_size=1,
     shuffle=shuffle,pin_memory=True)
 
-extractor = Extractor().cuda()
-extractor.load_state_dict(torch.load("/home/bks/zion/mix_net/train_eval/pre_train_model/bvlc_extractor.pth"))
-s1_classifier = Classifier(num_classes=num_classes).cuda()
-s2_classifier = Classifier(num_classes=num_classes).cuda()
-s1_classifier.load_state_dict(torch.load("/home/bks/zion/mix_net/train_eval/pre_train_model/bvlc_s1_cls.pth"))
-s2_classifier.load_state_dict(torch.load("/home/bks/zion/mix_net/train_eval/pre_train_model/bvlc_s2_cls.pth"))
-s1_t_discriminator = Discriminator().cuda()
-s2_t_discriminator = Discriminator().cuda()
+extractor = Extractor().cpu()
+extractor.load_state_dict(torch.load("/Users/bytedabce/PycharmProjects/mix_net/train_eval/pre_train_model/bvlc_extractor.pth"))
+s1_classifier = Classifier(num_classes=num_classes).cpu()
+s2_classifier = Classifier(num_classes=num_classes).cpu()
+s1_classifier.load_state_dict(torch.load("/Users/bytedabce/PycharmProjects/mix_net/train_eval/pre_train_model/bvlc_s1_cls.pth"))
+s2_classifier.load_state_dict(torch.load("/Users/bytedabce/PycharmProjects/mix_net/train_eval/pre_train_model/bvlc_s2_cls.pth"))
+s1_t_discriminator = Discriminator().cpu()
+s2_t_discriminator = Discriminator().cpu()
+
+
+
 
 def print_log(step, epoch, epoches, lr, l1, l2, l3, l4, l5, l6, l7, l8, flag, ploter, count):
     print ("Step [%d/%d] Epoch [%d/%d] lr: %f, s1_cls_loss: %.4f, s2_cls_loss: %.4f, s1_t_dis_loss: %.4f, " \
@@ -117,6 +120,25 @@ count = 0
 max_correct = 0
 max_step = 0
 max_epoch = 0
+correct = 0
+for (imgs, labels) in t_loader_test:
+    imgs = Variable(imgs.cpu())
+    imgs_feature = extractor(imgs)
+
+    s1_cls = s1_classifier(imgs_feature)
+    s2_cls = s2_classifier(imgs_feature)
+    s1_cls = F.softmax(s1_cls)
+    s2_cls = F.softmax(s2_cls)
+    s1_cls = s1_cls.data.cpu().numpy()
+    s2_cls = s2_cls.data.cpu().numpy()
+    res = s1_cls * s1_weight + s2_cls * s2_weight
+
+    pred = res.argmax(axis=1)
+    labels = labels.numpy()
+    correct += np.equal(labels, pred).sum()
+current_accuracy = correct * 1.0 / len(t_set_test)
+print ("Current accuracy is: ", current_accuracy)
+
 
 ploter = LinePlotter(env_name="bvlc_A_D_2_W")
 for step in range(steps):
