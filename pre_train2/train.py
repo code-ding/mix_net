@@ -62,11 +62,11 @@ source_set2 = OfficeImage(source_root2, source_label2, split="train")
 target_set = OfficeImage(target_root, target_label, split="train")
 
 source_loader1 = torch.utils.data.DataLoader(source_set1, batch_size=args.batch_size,
-    shuffle=args.shuffle, num_workers=args.num_workers)
+    shuffle=args.shuffle, num_workers=args.num_workers,drop_last=True)
 source_loader2 = torch.utils.data.DataLoader(source_set2, batch_size=args.batch_size,
-    shuffle=args.shuffle, num_workers=args.num_workers)
+    shuffle=args.shuffle, num_workers=args.num_workers,drop_last=True)
 target_loader = torch.utils.data.DataLoader(target_set, batch_size=args.batch_size,
-    shuffle=args.shuffle, num_workers=args.num_workers)
+    shuffle=args.shuffle, num_workers=args.num_workers,drop_last=True)
 
 extractor = Extractor().cuda()
 s1_classifier = Classifier(num_classes=args.class_num,extract=args.extract, dropout_p=args.dropout_p).cuda()
