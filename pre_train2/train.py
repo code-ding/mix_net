@@ -23,7 +23,7 @@ parser.add_argument("--target", default="/home/bks/zion/mix_net/data/Office31/ds
 parser.add_argument("--batch_size", default=32)
 parser.add_argument("--shuffle", default=True)
 parser.add_argument("--num_workers", default=1)
-parser.add_argument("--pre_epoches", default=30, type=int)
+parser.add_argument("--pre_epoches", default=40, type=int)
 parser.add_argument("--epoch", default=40, type=int)
 parser.add_argument("--snapshot", default="model_result")
 parser.add_argument("--lr", default=0.00001)
@@ -38,7 +38,7 @@ parser.add_argument("--task", default='', type=str)
 parser.add_argument("--post", default='-1', type=str)
 parser.add_argument("--repeat", default='-1', type=str)
 parser.add_argument("--cls_epoches", default=10)
-parser.add_argument("--threshold", default=0.7)
+parser.add_argument("--threshold", default=0.8)
 args = parser.parse_args()
 
 
@@ -304,8 +304,8 @@ for epoch in range(1, args.cls_epoches + 1):
 
             s1_t_feature = extractor(s1_t_imgs)
             s2_t_feature = extractor(s2_t_imgs)
-            s1_t_cls = s1_classifier(s1_t_feature)
-            s2_t_cls = s2_classifier(s2_t_feature)
+            _,s1_t_cls = s1_classifier(s1_t_feature)
+            _,s2_t_cls = s2_classifier(s2_t_feature)
             s1_t_cls_loss = get_cls_loss(s1_t_cls, s1_t_labels)
             s2_t_cls_loss = get_cls_loss(s2_t_cls, s2_t_labels)
 
@@ -323,10 +323,10 @@ for epoch in range(1, args.cls_epoches + 1):
             imgs = Variable(imgs.cuda())
             imgs_feature = extractor(imgs)
 
-            s1_cls = s1_classifier(imgs_feature)
-            s2_cls = s2_classifier(imgs_feature)
-            _,s1_cls = F.softmax(s1_cls)
-            _,s2_cls = F.softmax(s2_cls)
+            _,s1_cls = s1_classifier(imgs_feature)
+            _,s2_cls = s2_classifier(imgs_feature)
+            s1_cls = F.softmax(s1_cls)
+            s2_cls = F.softmax(s2_cls)
             s1_cls = s1_cls.data.cpu().numpy()
             s2_cls = s2_cls.data.cpu().numpy()
             res = s1_cls * s1_weight + s2_cls * s2_weight
