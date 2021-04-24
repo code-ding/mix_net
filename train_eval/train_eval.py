@@ -430,4 +430,4 @@ for step in range(steps):
 print("max_correct is :",str(max_correct))
 print("max_step is :",str(max_step+1))
 print("max_epoch is :",str(max_epoch+1))
-#ploter.save()
+ploter.save()
